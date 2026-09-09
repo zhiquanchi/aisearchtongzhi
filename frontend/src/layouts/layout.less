@@ -1,0 +1,67 @@
+.app-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f7f8fa;
+}
+
+.header {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #eef0f2;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #23272e;
+}
+
+.logo-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1677ff, #722ed1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  gap: 6px;
+  margin-left: 32px;
+  flex: 1;
+
+  a {
+    padding: 6px 14px;
+    border-radius: 8px;
+    color: #4b5563;
+    font-size: 14px;
+
+    &:hover {
+      background: #f0f2f5;
+    }
+
+    &.active {
+      color: #1677ff;
+      background: #e6f0ff;
+      font-weight: 500;
+    }
+  }
+}
+
+.app-body {
+  flex: 1;
+  overflow: hidden;
+}

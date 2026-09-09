@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+.venv/
+*.pyc
+
+# 环境变量(含 API Key)
+backend/.env
+
+# 本地数据
+backend/data/
+
+# Node
+node_modules/
+dist/
+.umi/
+.umi-production/
+npm-debug.log*
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
