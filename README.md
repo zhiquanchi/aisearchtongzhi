@@ -72,6 +72,22 @@ npm run dev
 
 打开 http://localhost:8001 即可使用。开发态 `/api` 由 umi proxy 转发到后端 8000 端口。
 
+### Docker Compose 部署(WSL)
+
+前置:WSL 内已安装 Docker + Docker Compose(或使用 Docker Desktop)。
+
+```bash
+# WSL 中执行
+cd /mnt/d/aisearchtongzhi
+docker compose up -d --build
+```
+
+- 访问 http://localhost:8080(nginx 托管前端静态文件,`/api` 反代到后端容器,SSE 已关闭缓冲)
+- API Key 从 `backend/.env` 读取;任务/日志/搜索历史存于 `backend/data/`(宿主机挂载,重建镜像不丢数据)
+- ⚠️ 容器与本地 dev 后端都含 APScheduler,同时运行会导致定时任务重复推送钉钉:
+  - 只用容器:停掉本地 uvicorn 即可(`docker compose down` 可切回本地开发)
+- 常用命令:`docker compose logs -f backend` 看后端日志 / `docker compose down` 停止 / `docker compose up -d --build` 更新
+
 ## API 说明
 
 `POST /api/chat/stream`,请求体:

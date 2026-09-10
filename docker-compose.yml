@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: ./backend
+    container_name: aisearch-backend
+    # API Key 从 backend/.env 读取(勿提交)
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      # SQLite(任务/日志/搜索历史)持久化到宿主机
+      - ./backend/data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    container_name: aisearch-frontend
+    ports:
+      # 访问入口: http://localhost:8080
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
