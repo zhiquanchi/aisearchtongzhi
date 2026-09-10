@@ -99,6 +99,14 @@ def _notify(task: dict, title: str, md_text: str) -> None:
     )
 
 
+def _prompt_hint(task: dict) -> str:
+    """把用户在"关注点"里填的自定义指令拼进提示词,两类任务均生效。"""
+    hint = (task.get("prompt") or "").strip()
+    if not hint:
+        return ""
+    return f"\n用户特别要求(必须遵守):{hint}"
+
+
 def _run_page_task(task: dict) -> tuple[str, str, str | None, dict | None]:
     """页面监控。返回 (状态, 日志摘要, 钉钉消息 or None, 快照更新)。"""
     page = fetch_webpage_sync(task["url"])
@@ -106,11 +114,12 @@ def _run_page_task(task: dict) -> tuple[str, str, str | None, dict | None]:
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     snapshot = {"last_snapshot_hash": digest, "last_snapshot_text": text[:6000]}
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    hint = _prompt_hint(task)
 
     first = not task.get("last_snapshot_hash")
     if first:
         summary = llm_complete(
-            f"请总结下面这个网页的核心内容,300 字以内:\n\n标题:{page['title']}\n\n{text}",
+            f"请总结下面这个网页的核心内容,300 字以内。{hint}\n\n标题:{page['title']}\n\n{text}",
             enable_search=False,
         )
         notify = (
@@ -127,14 +136,14 @@ def _run_page_task(task: dict) -> tuple[str, str, str | None, dict | None]:
         old = (task.get("last_snapshot_text") or "")[:3000]
         summary = llm_complete(
             "这是同一个网页的旧内容与新内容,请总结发生了哪些实质变化;"
-            "若无实质变化也请说明。条目化输出。\n\n"
+            f"若无实质变化也请说明。条目化输出。{hint}\n\n"
             f"【旧内容】\n{old}\n\n【新内容】\n{text[:4000]}",
             enable_search=False,
         )
         title, status, detail = f"页面内容有变化:{task['name']}", "changed", "内容有变化"
     else:
         summary = llm_complete(
-            f"请总结下面这个网页的要点,300 字以内:\n\n{text[:4000]}",
+            f"请总结下面这个网页的要点,300 字以内。{hint}\n\n{text[:4000]}",
             enable_search=False,
         )
         title, status, detail = f"页面监控简报:{task['name']}", "unchanged", "内容无变化(已按要求推送简报)"

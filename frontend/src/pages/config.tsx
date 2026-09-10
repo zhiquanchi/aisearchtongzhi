@@ -369,7 +369,15 @@ export default function ConfigPage() {
             </Form.Item>
           )}
 
-          <Form.Item name="prompt" label="关注点(可选)">
+          <Form.Item
+            name="prompt"
+            label="关注点(可选)"
+            extra={
+              <span className="muted">
+                作为自定义指令交给 AI,页面监控与主题监控均生效;如:只关注考试时间安排的变动、忽略广告与友情链接
+              </span>
+            }
+          >
             <Input placeholder="如:价格变化、新功能发布" />
           </Form.Item>
 
