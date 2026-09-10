@@ -2,6 +2,7 @@
 
 import hashlib
 import threading
+import time
 from datetime import datetime
 from typing import Any
 
@@ -107,52 +108,67 @@ def _prompt_hint(task: dict) -> str:
     return f"\n用户特别要求(必须遵守):{hint}"
 
 
-def _run_page_task(task: dict) -> tuple[str, str, str | None, dict | None]:
-    """页面监控。返回 (状态, 日志摘要, 钉钉消息 or None, 快照更新)。"""
+def _run_page_task(task: dict) -> tuple[str, str, str | None, dict | None, str | None]:
+    """页面监控。返回 (状态, 日志摘要, 钉钉消息 or None, 快照更新, 生成内容)。"""
+    t0 = time.perf_counter()
     page = fetch_webpage_sync(task["url"])
+    fetch_t = time.perf_counter() - t0
     text = page["text"]
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     snapshot = {"last_snapshot_hash": digest, "last_snapshot_text": text[:6000]}
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     hint = _prompt_hint(task)
+    fetch_stat = f"抓取 {fetch_t:.1f}s · 「{page['title']}」{len(text)} 字符"
 
     first = not task.get("last_snapshot_hash")
     if first:
+        t1 = time.perf_counter()
         summary = llm_complete(
             f"请总结下面这个网页的核心内容,300 字以内。{hint}\n\n标题:{page['title']}\n\n{text}",
             enable_search=False,
         )
+        llm_t = time.perf_counter() - t1
         notify = (
             f"### 页面监控已建立基线:{task['name']}\n\n"
             f"- **页面**: {task['url']}\n\n{summary}\n\n> {now}"
         )
-        return "baseline", "已建立基线", notify, snapshot
+        detail = f"已建立基线 · {fetch_stat} · 摘要 {llm_t:.1f}s"
+        return "baseline", detail, notify, snapshot, summary
 
     changed = digest != task["last_snapshot_hash"]
     if not changed and task.get("notify_on_change_only", True):
-        return "unchanged", "内容无变化", None, snapshot
+        return "unchanged", f"内容无变化 · {fetch_stat}", None, snapshot, None
 
     if changed:
         old = (task.get("last_snapshot_text") or "")[:3000]
+        t1 = time.perf_counter()
         summary = llm_complete(
             "这是同一个网页的旧内容与新内容,请总结发生了哪些实质变化;"
             f"若无实质变化也请说明。条目化输出。{hint}\n\n"
             f"【旧内容】\n{old}\n\n【新内容】\n{text[:4000]}",
             enable_search=False,
         )
+        llm_t = time.perf_counter() - t1
         title, status, detail = f"页面内容有变化:{task['name']}", "changed", "内容有变化"
     else:
+        t1 = time.perf_counter()
         summary = llm_complete(
             f"请总结下面这个网页的要点,300 字以内。{hint}\n\n{text[:4000]}",
             enable_search=False,
         )
-        title, status, detail = f"页面监控简报:{task['name']}", "unchanged", "内容无变化(已按要求推送简报)"
+        llm_t = time.perf_counter() - t1
+        title, status, detail = (
+            f"页面监控简报:{task['name']}",
+            "unchanged",
+            "内容无变化(已按要求推送简报)",
+        )
+    detail = f"{detail} · {fetch_stat} · LLM {llm_t:.1f}s"
 
     notify = f"### {title}\n\n- **页面**: {task['url']}\n\n{summary}\n\n> {now}"
-    return status, detail, notify, snapshot
+    return status, detail, notify, snapshot, summary
 
 
-def _run_topic_task(task: dict) -> tuple[str, str, str | None, dict | None]:
+def _run_topic_task(task: dict) -> tuple[str, str, str | None, dict | None, str | None]:
     """主题监控:联网搜索生成简报。"""
     ask = f"请围绕主题「{task['topic']}」搜索最新信息"
     if task.get("prompt"):
@@ -161,10 +177,13 @@ def _run_topic_task(task: dict) -> tuple[str, str, str | None, dict | None]:
         ",输出一份简明简报:3-6 条要点,每条尽量附来源链接,末尾用"
         "「## 参考来源」列出实际参考的链接。"
     )
+    t0 = time.perf_counter()
     digest = llm_complete(ask, enable_search=True)
+    llm_t = time.perf_counter() - t0
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     notify = f"### 主题监控简报:{task['name']}\n\n{digest}\n\n> {now}"
-    return "ok", "简报已生成并推送", notify, None
+    detail = f"简报已生成 · 检索+生成 {llm_t:.1f}s · {len(digest)} 字符"
+    return "ok", detail, notify, None, digest
 
 
 def run_task_once(task_id: str) -> None:
@@ -172,26 +191,46 @@ def run_task_once(task_id: str) -> None:
     if task is None:
         return
 
+    t0 = time.perf_counter()
     try:
         if task["type"] == "page":
-            status, detail, notify, snapshot = _run_page_task(task)
+            status, detail, notify, snapshot, content = _run_page_task(task)
         else:
-            status, detail, notify, snapshot = _run_topic_task(task)
+            status, detail, notify, snapshot, content = _run_topic_task(task)
     except Exception as exc:  # noqa: BLE001 - 后台任务统一记录为失败
-        store.add_run(task_id, "error", str(exc)[:500])
+        store.add_run(
+            task_id,
+            "error",
+            f"执行失败: {exc}"[:1000],
+            duration_ms=int((time.perf_counter() - t0) * 1000),
+        )
         store.update_task(task_id, {"last_run_at": store._now(), "last_status": "error"})
         return
 
     if notify:
+        t1 = time.perf_counter()
         try:
             _notify(task, task["name"], notify)
         except Exception as exc:  # noqa: BLE001
-            store.add_run(task_id, "error", f"钉钉推送失败: {exc}"[:500])
+            store.add_run(
+                task_id,
+                "error",
+                f"钉钉推送失败(耗时 {time.perf_counter() - t1:.1f}s): {exc}"[:1000],
+                content=content,
+                duration_ms=int((time.perf_counter() - t0) * 1000),
+            )
             store.update_task(task_id, {"last_run_at": store._now(), "last_status": "error"})
             return
+        detail = f"{detail} · 推送 {time.perf_counter() - t1:.1f}s"
 
     patch: dict[str, Any] = {"last_run_at": store._now(), "last_status": status}
     if snapshot:
         patch.update(snapshot)
-    store.add_run(task_id, status, detail)
+    store.add_run(
+        task_id,
+        status,
+        detail,
+        content=content,
+        duration_ms=int((time.perf_counter() - t0) * 1000),
+    )
     store.update_task(task_id, patch)

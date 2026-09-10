@@ -82,4 +82,27 @@ export interface RunRecord {
   run_at: string;
   status: string;
   detail?: string;
+  content?: string | null;
+  duration_ms?: number | null;
+}
+
+// ---------- 搜索历史 ----------
+
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  msg_count: number;
+}
+
+export interface SavedMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: SourceItem[];
+  searched?: boolean;
+}
+
+export interface ConversationData extends ConversationMeta {
+  messages: SavedMessage[];
 }

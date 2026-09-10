@@ -1,4 +1,12 @@
-import type { ChatRequest, MonitorTask, RunRecord, StreamEvent } from '@/types';
+import type {
+  ChatRequest,
+  ConversationData,
+  ConversationMeta,
+  MonitorTask,
+  RunRecord,
+  SavedMessage,
+  StreamEvent,
+} from '@/types';
 
 /** 通过 SSE 流式请求后端,逐事件回调。 */
 export async function streamChat(
@@ -81,3 +89,19 @@ export const testDingtalk = (webhook: string, secret: string) =>
     method: 'POST',
     body: JSON.stringify({ webhook, secret }),
   });
+
+// ---------- 搜索历史 API ----------
+
+export const listConversations = () => http<ConversationMeta[]>('/api/conversations');
+
+export const getConversation = (id: string) =>
+  http<ConversationData>(`/api/conversations/${id}`);
+
+export const saveConversation = (id: string | undefined, title: string, messages: SavedMessage[]) =>
+  http<{ id: string }>('/api/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ id, title, messages }),
+  });
+
+export const deleteConversation = (id: string) =>
+  http<{ ok: boolean }>(`/api/conversations/${id}`, { method: 'DELETE' });

@@ -20,6 +20,8 @@ import {
 } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './config.less';
 import {
   createTask,
@@ -455,7 +457,7 @@ export default function ConfigPage() {
         title={`执行日志 · ${logsFor?.name || ''}`}
         open={!!logsFor}
         onClose={() => setLogsFor(null)}
-        width={460}
+        width={560}
       >
         {runs.length === 0 ? (
           <Empty description="暂无执行记录" />
@@ -468,9 +470,35 @@ export default function ConfigPage() {
                 children: (
                   <div className="run-item">
                     <div>
-                      <span className="run-time">{r.run_at}</span> <Tag color={s.color}>{s.label}</Tag>
+                      <span className="run-time">{r.run_at}</span>{' '}
+                      <Tag color={s.color}>{s.label}</Tag>
+                      {r.duration_ms != null && (
+                        <span className="run-time">
+                          耗时 {(r.duration_ms / 1000).toFixed(1)}s
+                        </span>
+                      )}
                     </div>
                     {r.detail && <div className="run-detail">{r.detail}</div>}
+                    {r.content && (
+                      <Collapse
+                        ghost
+                        size="small"
+                        className="run-content"
+                        items={[
+                          {
+                            key: 'content',
+                            label: <span className="run-time">查看生成内容</span>,
+                            children: (
+                              <div className="md run-md">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {r.content}
+                                </ReactMarkdown>
+                              </div>
+                            ),
+                          },
+                        ]}
+                      />
+                    )}
                   </div>
                 ),
               };

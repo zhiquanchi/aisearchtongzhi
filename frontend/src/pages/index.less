@@ -127,6 +127,65 @@
   padding: 24px 20px 12px;
 }
 
+.chat-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 6px 0 10px;
+  background: linear-gradient(rgba(247, 248, 250, 0.95) 60%, rgba(247, 248, 250, 0));
+}
+
+.hero-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.history-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #91caff;
+    background: #f0f7ff;
+  }
+
+  &.active {
+    border-color: #1677ff;
+    background: #e6f0ff;
+  }
+}
+
+.history-title {
+  font-size: 14px;
+  color: #23272e;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9aa1ac;
+  font-size: 12px;
+}
+
 .msg-user {
   display: flex;
   justify-content: flex-end;

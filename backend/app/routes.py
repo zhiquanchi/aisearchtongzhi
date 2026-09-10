@@ -72,6 +72,12 @@ class DingTalkTestIn(BaseModel):
     secret: str = ""
 
 
+class ConversationIn(BaseModel):
+    id: str | None = None
+    title: str = Field(default="", max_length=200)
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+
+
 def _validate_task(t: TaskIn) -> str | None:
     if t.type == "page" and not t.url.strip():
         return "页面监控必须填写监控网址"
@@ -149,4 +155,32 @@ async def test_dingtalk(body: DingTalkTestIn) -> dict:
         )
     except Exception as exc:  # noqa: BLE001 - 把钉钉返回的错误透传给前端
         raise HTTPException(400, f"发送失败: {exc}")
+    return {"ok": True}
+
+
+# ---------- 搜索历史对话 ----------
+
+
+@router.get("/api/conversations")
+async def list_conversations() -> list[dict]:
+    return store.list_conversations()
+
+
+@router.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str) -> dict:
+    conv = store.get_conversation(conv_id)
+    if conv is None:
+        raise HTTPException(404, "会话不存在")
+    return conv
+
+
+@router.post("/api/conversations")
+async def save_conversation(body: ConversationIn) -> dict:
+    conv_id = store.upsert_conversation(body.id, body.title.strip(), body.messages)
+    return {"id": conv_id}
+
+
+@router.delete("/api/conversations/{conv_id}")
+async def delete_conversation(conv_id: str) -> dict:
+    store.delete_conversation(conv_id)
     return {"ok": True}
