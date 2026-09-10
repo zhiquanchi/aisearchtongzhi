@@ -21,7 +21,7 @@
 │   ├── app/
 │   │   ├── main.py        # FastAPI 应用入口(启动时初始化存储与调度器)
 │   │   ├── routes.py      # /api/health, /api/chat/stream (SSE), /api/tasks CRUD 等
-│   │   ├── agent.py       # 流式对话 + 工具调用 agent 循环
+│   │   ├── agent.py       # LangGraph agent 图(chat→tools 循环)+ SSE 事件流
 │   │   ├── monitor.py     # 监控任务调度(APScheduler)与执行(抓取/搜索→LLM→钉钉)
 │   │   ├── tools.py       # fetch_webpage 网页抓取工具(同步/异步)
 │   │   ├── dingtalk.py    # 钉钉自定义机器人推送(支持加签)
@@ -111,3 +111,4 @@ npm run dev
 - 千问平台 API 兼容 OpenAI 协议,文档:https://platform.qianwenai.com/docs/developer-guides/getting-started/introduction
 - `enable_search` 的搜索结果由平台在服务端注入,接口不返回结构化引用列表;前端"参考来源"来自模型在回答中列出的链接 + 实际抓取过的网页。
 - `reasoning_content` 为非标准字段,后端通过 `delta.model_extra` 读取,并在工具调用多轮回传时保留。
+- 对话 agent 使用 **LangGraph** 编排:`agent.py` 中 `chat → tools` 两节点循环,节点内部保留原生 openai SDK 流式调用;LangGraph 的 StreamWriter 自定义事件直接映射为 SSE 协议,`recursion_limit = 2 × MAX_TOOL_ROUNDS` 限制工具轮数。
